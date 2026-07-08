@@ -1,0 +1,61 @@
+# Section 7.1 pilot — Phase 5 Axis C1: β-annealing croissant (paper's scheme).
+#
+# Motivation:
+#   §4.3 proposes β_min → β_max linear annealing over the training horizon.
+#   The production code does the INVERSE (strong cascade → flat weights).
+#   C1 tests the theoretical scheme: start soft (β=2, broad exploration),
+#   finish sharp (β=10, tight constraint enforcement).
+#
+# Comparison:
+#   Baseline: B1 results for TCL with β=(10,10,10) fixed (runs/phase5_b1/).
+#   C1: same B1 env, only TCL, with β annealed 2→10 over 60k steps.
+#
+# Hypothesis:
+#   - Early soft cascade (β≈2) allows broader policy exploration without
+#     immediately collapsing the loss-budget reward inversion zone.
+#   - Late sharp cascade (β≈10) enforces constraint satisfaction once the
+#     policy has learned a robust bidding strategy.
+#   - Expected: comparable or better CSR_c0 vs B1 (β=10 fixed), without
+#     the loss-budget gate-compression failure observed in C2 (β=50).
+#
+# If confirmed: §4.3 description of annealing scheme is consistent with code;
+#               COMMENT [NON RÉSOLU — expériences formelles requises] resolved.
+# If refuted:   keep §4.3 as theoretical motivation only, add empirical caveat.
+
+env:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80       # same as B1
+  target_ctr: 0.15               # unchanged
+  target_margin: -4.0            # unchanged
+  margin_formula: revenue_share
+  drift_rate: 0.01               # B1: 1%/day
+
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+agents:
+  tcl:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "2.0,2.0,2.0"
+    betas_final: "10.0,10.0,10.0"
+    beta_schedule: "linear"
+    beta_anneal_steps: 60000     # full training horizon
+
+seeds: [1, 2, 3]
+output_dir: runs/phase5_c1

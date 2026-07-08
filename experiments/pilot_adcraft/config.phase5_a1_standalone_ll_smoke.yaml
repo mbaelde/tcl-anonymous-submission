@@ -1,0 +1,40 @@
+# Smoke test for config.phase5_a1_standalone_ll.yaml — 1 seed, 3000 steps.
+
+env:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80
+  target_ctr: 0.15
+  target_margin: -4.0
+  margin_formula: revenue_share
+
+sac:
+  total_timesteps: 3000
+  learning_starts: 500
+  buffer_size: 10000
+  batch_size: 64
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+agents:
+  tcl_standalone:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+    rb_mode: "last_layer"
+    rb_weight: 1.0
+
+seeds: [1]
+output_dir: runs/phase5_a1_standalone_ll_smoke

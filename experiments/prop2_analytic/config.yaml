@@ -1,0 +1,45 @@
+# Proposition 2 — analytic validation (Option A).
+#
+# Replaces SAC with the closed-form inner-loop policy a*(lambda) = 1 - lambda
+# (the unconstrained reward maximizer of the Lagrangian r - lambda * cost
+# with r = a - 0.5 a^2 and cost = a - b(phi)). This realizes the exact
+# timescale-separation assumption (H4) used in the proof of Prop 2,
+# so the empirical lambda(t) dynamics should match the theory to numerical
+# precision.
+#
+# IMPORTANT — phase coherence:
+#   random_phase_at_reset = false. With phase resets, every episode boundary
+#   reinjects a transient of duration ~1/alpha into the lambda trajectory
+#   (the dual variable is preserved but the forcing phase jumps), which
+#   inflates the peak-to-peak amplitude. For alpha=1e-3 we measured
+#   ratio ~1.86; for alpha=3e-2 ~1.4. Disabling the phase reset removes
+#   the transients entirely and yields ratio = 1.00 +- 0.02 on omega_ppe >= 1.
+#
+# omega_ppe = 0.5 is intentionally kept to expose the under-sampling
+# artefact: with horizon=144, half a forcing period fits in one episode,
+# so peak-to-peak captures only ~half the swing. Excluded from the
+# acceptance band but shown for completeness.
+
+env:
+  horizon: 144
+  b0: 0.5
+  amplitude: 0.2
+  random_phase_at_reset: false
+
+agent:
+  total_timesteps: 60000
+  learning_starts: 1000
+  batch_size: 256
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  gamma: 0.99
+  tau: 0.005
+  autotune_alpha: true
+  alpha_init: 0.2
+
+grid:
+  alphas: [1.0e-3, 3.0e-3, 1.0e-2, 3.0e-2]
+  omegas_periods_per_episode: [0.5, 1.0, 2.0, 4.0, 8.0]
+  seeds: [1, 2, 3]
+
+output_dir: runs/prop2_analytic

@@ -1,0 +1,82 @@
+# Section 7.1 pilot — Phase 5 Axis A1: tighter utilization constraint.
+#
+# Motivation (Phase 5, 2026-05-19):
+#   Phase 4 showed steps_to_csr_0.9 = 59 for ALL agents and ALL constraints:
+#   the initial random policy (uniform bids in [0, 3]) trivially satisfies all
+#   constraints because the budget cap fires daily and the default 3%/day drift
+#   (vol/ctr/cvr) improves margin progressively. The env was too easy to
+#   discriminate between constrained-RL methods on the utilization axis.
+#
+#   A1 raises target_utilization from 0.40 to 0.80 to create genuine tension:
+#   with the drift env, bid=0.30 yields util≈0.51 (satisfies 0.40, VIOLATES 0.80)
+#   while bid=0.40 yields util≈0.99 (satisfies both). The SAC return-maximising
+#   tendency pushes bids toward ~0.25–0.33 (better margin), which means the
+#   util=0.80 constraint IS violated by near-optimal policies, forcing all
+#   constrained methods to actively maintain a higher bid floor.
+#
+# Feasibility (empirical, with default drift, B=100):
+#   Constant-bid sweep (10 episodes × seed 0-9, max_days=60):
+#     bid=0.30 → util=0.51, c0_mean=+0.29 (VIOLATION for util=0.80)
+#     bid=0.40 → util=0.99, c0_mean=-0.19 (feasible)
+#   Lower feasibility bound: bid ≈ 0.33–0.36 (interpolated).
+#   Margin constraint remains permissive across this bid range (drift helps).
+#
+# What A1 tests:
+#   - Methods that actively prevent underspend (lag_multi λ_0, TCL gate c0)
+#   - steps_to_csr_0.9 for c0 expected >> 59 (unlike Phase 4)
+#   - CSR_c0 variance across seeds: proxy for constraint-recovery robustness
+#
+# Constraint vector (canonical: c_k > 0 = violation):
+#   c0 = target_utilization - cost/budget        (underspend → +)
+#   c1 = target_ctr - clicks/impressions         (low quality → +)
+#   c2 = target_margin - (revenue-cost)/revenue  (excess loss → +)
+
+env:
+  env_kind: laplacian             # pure-Python Laplacian sim (§G.1 faithful)
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80       # A1: raised from 0.40 → forces higher bids
+  target_ctr: 0.15               # unchanged — permissive (natural bctr ≈ 0.28)
+  target_margin: -4.0            # unchanged — permissive with drift
+  margin_formula: revenue_share  # (rev - cost) / rev
+
+# SAC core — identical to config.laplacian.yaml (Phase 4) for comparability.
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+# Per-agent extras — identical to config.laplacian.yaml (Phase 4).
+agents:
+  lag_multi:
+    lambda_init: 0.0
+    lambda_lr: 5.0e-3
+    lambda_update_frequency: 1
+    cost_baseline: 0.0
+  fixed:
+    cost_weights: "1.0,1.0,1.0"
+  tcl:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""             # no annealing in pilot (§4.3 covers schedule)
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+  hprs:
+    thresholds: "0.0,0.0,0.0"
+    base_weight: 1.0
+    weight_decay: 1.0
+
+seeds: [1, 2, 3]
+output_dir: runs/phase5_a1

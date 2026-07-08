@@ -1,0 +1,58 @@
+# Tau-threshold sensitivity: robustness of TCL vs Lagrangian to threshold miscalibration.
+#
+# Hypothesis: the cascade gate is local in (s,a) and should be more robust than
+# the Lagrangian integrator, which drifts unboundedly under persistent violations.
+#
+# Protocol: sweep target_utilization in {0.65, 0.70, 0.75, 0.80, 0.85, 0.90}
+# (nominal = 0.80). Keep all other params fixed (A1 loss-budget, drift=0.03).
+# Compare TCL-SAC(B) vs Lag-SAC: CSR_c0 and episode return vs tau_util.
+#
+# Note: target_ctr and target_margin kept at nominal (0.15, -4.0).
+# Only tau_util is swept since c0 is the primary constraint of interest.
+
+env_base:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_ctr: 0.15
+  target_margin: -4.0
+  margin_formula: revenue_share
+  drift_rate: 0.03
+
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+tcl_cfg:
+  thresholds: "0.0,0.0,0.0"
+  betas_init: "10,10,10"
+  betas_final: ""
+  beta_schedule: "linear"
+  beta_anneal_steps: 0
+  reward_shift: 0.0
+
+lag_cfg:
+  lambda_lr: 1.0e-3
+  lambda_init: 0.0
+
+# tau_util values to sweep
+tau_util_sweep: [0.65, 0.70, 0.75, 0.80, 0.85, 0.90]
+
+# Agents: TCL-SAC(B) and Lag-SAC
+agents: ["tcl", "lagrangian"]
+
+seeds: [1, 2, 3]
+output_dir: runs/tau_sensitivity

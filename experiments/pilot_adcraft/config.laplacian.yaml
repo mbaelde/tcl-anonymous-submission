@@ -1,0 +1,81 @@
+# Section 7.1 pilot — Phase 4 re-pilot on MultiConstraintAdCraftLaplacian.
+#
+# Motivation (Phase 3, 2026-05-19):
+#   The upstream Mikata-Project/adcraft Rust sim deviates from the paper spec
+#   on 2 independent points (cost_create bug: clamp fixed at 4.4 instead of bid;
+#   generic_cost Python path unused in the effective call chain). We re-implement
+#   the env in pure Python (adcraft_laplacian_sim.py) following §G.1 + Table 1
+#   of Gomrokchi et al. (arXiv:2306.11971).
+#
+# Loss-budget formulation (structural property of the env, not a bug):
+#   With §G.1 parameters (loc ∈ [0.30, 1.00], bctr ~ Beta(2,5) mean=0.29,
+#   sctr ~ Beta(5,2) mean=0.71, reward_mean ∈ [0.30, 0.50]), the revenue per
+#   impression is bctr × sctr × reward_mean ≈ 0.082, while the second-price
+#   cost per impression is E[c] ≈ 0.55. Positive margin is structurally
+#   unreachable at any bid level that generates significant volume.
+#   This matches the "growth advertising" use-case modelled in the paper:
+#   the agent must control its loss rate (margin ≥ -4.0) while spending its
+#   budget (util ≥ 0.40) and maintaining ad quality (ctr ≥ 0.15).
+#   This is a loss-budget CMDP, not a profit-maximisation problem.
+#
+# Calibrated targets (calibrate_laplacian.py sweep, 2026-05-19):
+#   Feasible window: bid ∈ [~0.35, ~0.55] with B=100 (uniform policy).
+#   Below 0.35 → util < 0.40 (under-spending). Above 0.55 → budget cap fires,
+#   margin < −4.0 (over-paying for low-quality impressions).
+#   The margin constraint is the discriminating lever for Phase 4:
+#   a naïve high-bid policy saturates the budget but violates margin.
+#
+# Constraint vector (canonical: c_k > 0 = violation):
+#   c1 = target_utilization - cost/budget        (underspend → +)
+#   c2 = target_ctr - clicks/impressions         (low quality → +)
+#   c3 = target_margin - (revenue-cost)/revenue  (excess loss → +)
+
+env:
+  env_kind: laplacian             # pure-Python Laplacian sim (§G.1 faithful)
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.40       # feasible at bid=0.5; violated at bid<0.35
+  target_ctr: 0.15               # well below natural bctr ≈ 0.28; permissive
+  target_margin: -4.0            # feasible at bid≤0.55; violated at bid>0.55
+  margin_formula: revenue_share  # (rev - cost) / rev
+
+# Shared SAC core — identical to config.calibrated.yaml for fair comparison.
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+# Per-agent extras — identical to config.calibrated.yaml.
+agents:
+  lag_multi:
+    lambda_init: 0.0
+    lambda_lr: 5.0e-3
+    lambda_update_frequency: 1
+    cost_baseline: 0.0
+  fixed:
+    cost_weights: "1.0,1.0,1.0"
+  tcl:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""             # no annealing in pilot (§4.3 covers schedule)
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+  hprs:
+    thresholds: "0.0,0.0,0.0"
+    base_weight: 1.0
+    weight_decay: 1.0
+
+seeds: [1, 2, 3]
+output_dir: runs/pilot_adcraft_laplacian

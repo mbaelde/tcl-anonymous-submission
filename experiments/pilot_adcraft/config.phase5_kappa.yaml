@@ -1,0 +1,73 @@
+# Section 7.1 pilot — Calibration κ_k : gate gaussien vs valeurs empiriques.
+#
+# Motivation:
+#   §3 définit R_k^stab = exp(-κ_k * e_k²) avec κ_k = ln2/(e_k*)² tel que
+#   R_k^stab = 0.5 exactement pour une violation e_k = e_k* (seuil opérationnel).
+#   L'implémentation actuelle (gate linéaire) n'utilise pas cette formule.
+#   Ce test compare deux calibrations explicites du gate gaussien sur le
+#   simulateur B1 (drift=0.01, util=0.80, régime favorable à TCL).
+#
+# Conditions testées (TCL uniquement, comparer contre B1 linear au post-process) :
+#   A: tcl_gaussian_empirical — κ = (0.5, 10, 10)  [valeurs tuning prod]
+#      e_pacing* = sqrt(ln2/0.5) ≈ 1.18,  e_kpi* = sqrt(ln2/10) ≈ 0.26
+#
+#   B: tcl_gaussian_formula  — κ = (0.308, 17.33, 17.33)  [formule §3]
+#      e_pacing* = 1.5 (pacing delta acceptable),  e_kpi* = 0.20 (20% erreur)
+#      κ_pacing = ln2/1.5² ≈ 0.308,  κ_kpi = ln2/0.20² ≈ 17.33
+#
+# Hypothèse:
+#   - tcl_gaussian_formula may tighten CSR_c1/c2 (sharper κ_kpi) but preserve c0
+#   - tcl_gaussian_empirical has very soft pacing gate (e*=1.18 >> typical c0≈0.2)
+#     which may allow better joint constraint optimization
+#
+# Si la calibration formelle améliore CSR_c2 sans dégrader CSR_c0 :
+#   → adopter la formule dans §3 COMMENT resolution et récrire reward.py
+# Si aucune différence ou dégradation :
+#   → §3 garde "peut être calibrée depuis e_k*" comme note théorique sans obligation
+
+env:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80       # B1 env
+  target_ctr: 0.15
+  target_margin: -4.0
+  margin_formula: revenue_share
+  drift_rate: 0.01               # B1: slow drift
+
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+agents:
+  tcl_gaussian_empirical:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+    kappas: "0.5,10.0,10.0"          # empirical production values
+
+  tcl_gaussian_formula:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+    kappas: "0.308,17.33,17.33"      # formula: kappa = ln2 / (e_k*)^2
+
+seeds: [1, 2, 3]
+output_dir: runs/phase5_kappa

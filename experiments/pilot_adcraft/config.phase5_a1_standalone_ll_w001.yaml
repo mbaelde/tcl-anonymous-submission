@@ -1,0 +1,41 @@
+# Standalone (A) last_layer — rb_weight=0.01
+# Atténue fortement le signal r_b négatif pour laisser la cascade lex dominer c0.
+
+env:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80
+  target_ctr: 0.15
+  target_margin: -4.0
+  margin_formula: revenue_share
+
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+agents:
+  tcl_standalone:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+    rb_mode: "last_layer"
+    rb_weight: 0.01
+
+seeds: [1, 2, 3]
+output_dir: runs/phase5_a1_standalone_ll_w001

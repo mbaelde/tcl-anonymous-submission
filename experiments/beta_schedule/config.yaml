@@ -1,0 +1,72 @@
+# Section 4.3: beta-schedule comparison on AdCraftLaplacian (K=3, §G.1-faithful).
+#
+# Resolves the %%NON RESOLU%% in TCL_paper_draft.md §4.3: the paper describes
+# an *increasing* beta schedule (soft -> strict cascade) while the production
+# RTB code implements a *decreasing* one (graceful relaxation). This experiment
+# compares the two regimes plus a fixed baseline on the A1 environment (the
+# tight-utilization regime where gate-compression failure was observed in Phase 5).
+#
+# Why A1 env (target_utilization=0.80, drift_rate=0.03):
+#   - Phase 5 A1 baseline (fixed β=10): TCL showed seed-dependent gate-compression
+#     failure (CSR_c0=0.780 on seed 3, mechanism: r_TCL ≈ 0 in infeasible zone
+#     > r_base < 0 in feasible zone under loss-budget structure).
+#   - Phase 5 C2 (fixed β=50): failure severely amplified (0.275/0.525).
+#   - Hypothesis: increasing schedule (β: 2→10) mitigates early gate compression by
+#     starting with a soft gate (σ(-2*c) not near 0 even in infeasible zone), giving
+#     the policy time to learn before the cascade tightens.
+#   - Decreasing schedule (β: 10→2) is the prod-code regime: starts strict (highest
+#     risk of early gate compression), then relaxes — predicted worst outcome.
+#
+# The fixed baseline (β=10) reproduces the A1 condition and can be compared to
+# runs/phase5_a1/ (same env params, same seeds) as an external consistency check.
+
+env:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80        # tight (A1 regime; failure mode present at β=10)
+  target_ctr: 0.15
+  target_margin: -4.0
+  margin_formula: revenue_share
+  drift_rate: 0.03                # default drift (loss-budget env)
+
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+tcl_base:
+  thresholds: "0.0,0.0,0.0"
+
+# Three regimes: anneal window = first 2/3 of total_timesteps (40k/60k).
+schedules:
+  increasing:           # paper-aligned: soft -> strict (cascade tightening)
+    betas_init: "2.0,2.0,2.0"
+    betas_final: "10.0,10.0,10.0"
+    beta_schedule: "linear"
+    beta_anneal_steps: 40000
+  decreasing:           # RTB-prod regime: strict -> soft (hierarchy relaxation)
+    betas_init: "10.0,10.0,10.0"
+    betas_final: "2.0,2.0,2.0"
+    beta_schedule: "linear"
+    beta_anneal_steps: 40000
+  fixed:                # baseline: no annealing, β=10 throughout (A1 condition)
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+
+seeds: [1, 2, 3]
+output_dir: runs/beta_schedule

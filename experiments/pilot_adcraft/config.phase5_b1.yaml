@@ -1,0 +1,81 @@
+# Section 7.1 pilot — Phase 5 Axis B1: faster non-stationarity (drift_rate=0.01 → 1%/day).
+#
+# Motivation:
+#   A1 established that target_utilization=0.80 creates genuine constraint tension.
+#   B1 adds faster non-stationarity on top of A1 to test TCL's LOCAL reactivity vs
+#   lag_multi's GLOBAL integration over the replay buffer.
+#
+# Hypothesis:
+#   - TCL: shaped reward reacts immediately to gate values (local, multiplicative)
+#     → should track non-stationarity faster, higher CSR_c0 robustness.
+#   - lag_multi: λ update integrates over the full replay batch (global average)
+#     → slower adaptation to drift; λ≡0 failure mode compounded by non-stationarity.
+#   - fixed/hprs: fixed weights → no adaptation mechanism.
+#
+# Feasibility at drift_rate=0.01 (1%/day):
+#   Drift is SLOWER than default (0.03). This means:
+#   - Margins improve more slowly → c2 may be binding longer.
+#   - CTR drift slower → c1 less likely to self-heal.
+#   - Utilisation constraint c0 unchanged by drift direction (budget daily cap
+#     mechanics are the same; bid level still determines util).
+#   Expected: all failure modes present in A1 persist; B1 adds drift-sensitivity
+#   discrimination on top.
+#
+# What B1 tests:
+#   - TCL adaptation speed under non-stationarity vs lag_multi.
+#   - Whether λ≡0 is exacerbated or unchanged under slower drift.
+#   - Marginal constraint c2 tension (less slack from slow drift).
+#
+# Constraint vector (canonical: c_k > 0 = violation):
+#   c0 = target_utilization - cost/budget        (underspend → +)
+#   c1 = target_ctr - clicks/impressions         (low quality → +)
+#   c2 = target_margin - (revenue-cost)/revenue  (excess loss → +)
+
+env:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80       # same as A1
+  target_ctr: 0.15               # unchanged
+  target_margin: -4.0            # unchanged
+  margin_formula: revenue_share
+  drift_rate: 0.01               # B1: 1%/day (default is 3%)
+
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+agents:
+  lag_multi:
+    lambda_init: 0.0
+    lambda_lr: 5.0e-3
+    lambda_update_frequency: 1
+    cost_baseline: 0.0
+  fixed:
+    cost_weights: "1.0,1.0,1.0"
+  tcl:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+  hprs:
+    thresholds: "0.0,0.0,0.0"
+    base_weight: 1.0
+    weight_decay: 1.0
+
+seeds: [1, 2, 3]
+output_dir: runs/phase5_b1

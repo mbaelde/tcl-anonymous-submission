@@ -1,0 +1,61 @@
+# PID-Lagrangian benchmark: compare SAC + PID-Lag (Stooke 2020) vs TCL-SAC(B) on A1.
+#
+# Stooke et al. (2020) is the conceptually closest baseline to TCL: both address
+# the oscillation problem of standard Lagrangian methods, but via different mechanisms.
+# TCL uses a multiplicative gate (Prop. 3: amplitude O(beta*A/2)); PID adds an
+# integral term to absorb accumulated violations.
+#
+# Agents: TCL-SAC(B) and PID-Lag (K_I > 0). Standard Lag-SAC included as reference.
+# Environment: A1 (target_util=0.80, drift=0.03, loss-budget) -- same as Phase 5 A1.
+# Metrics: CSR_c0, CSR_c1, CSR_c2, episode return (steady-state last 20%).
+
+env:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80
+  target_ctr: 0.15
+  target_margin: -4.0
+  margin_formula: revenue_share
+  drift_rate: 0.03
+
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+tcl_cfg:
+  thresholds: "0.0,0.0,0.0"
+  betas_init: "10,10,10"
+  betas_final: ""
+  beta_schedule: "linear"
+  beta_anneal_steps: 0
+  reward_shift: 0.0
+
+# PID gains: K_P ~= lambda_lr of standard Lag, K_I = 0.1 * K_P (Stooke 2020 recipe)
+pid_cfg:
+  lambda_init: 0.0
+  pid_kp: 1.0e-3
+  pid_ki: 1.0e-4
+  pid_kd: 0.0
+
+lag_cfg:
+  lambda_init: 0.0
+  lambda_lr: 1.0e-3
+
+agents: ["tcl", "pid_lagrangian", "lagrangian"]
+
+seeds: [1, 2, 3]
+output_dir: runs/pid_lagrangian_bench

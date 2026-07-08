@@ -1,0 +1,52 @@
+# Smoke check on the calibrated env (post-2026-05-18 hetero-polytope sweep).
+# Mirrors config.calibrated.yaml; tiny training budget so all four agents
+# complete in <5 min total. Goal: verify the new env runs, the K=3 cost
+# vector is sane (CTR now active, util/margin in tension), and the
+# per-agent shaping tags appear in TB.
+
+env:
+  num_keywords: 10
+  budget: 100.0
+  bid_max: 10.0
+  max_days: 60
+  target_utilization: 0.5
+  target_ctr: 0.7
+  target_margin: -1.7
+  margin_formula: revenue_share
+
+sac:
+  total_timesteps: 3000
+  learning_starts: 500
+  buffer_size: 3000
+  batch_size: 64
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+agents:
+  lag_multi:
+    lambda_init: 0.0
+    lambda_lr: 1.0e-3
+    lambda_update_frequency: 1
+    cost_baseline: 0.0
+  fixed:
+    cost_weights: "1.0,1.0,1.0"
+  tcl:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+  hprs:
+    thresholds: "0.0,0.0,0.0"
+    base_weight: 1.0
+    weight_decay: 1.0
+
+seeds: [42]
+output_dir: runs/pilot_adcraft_calibrated_smoke

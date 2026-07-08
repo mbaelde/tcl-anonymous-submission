@@ -1,0 +1,86 @@
+# Section 7.1 pilot — calibrated env (post-2026-05-18 hetero-polytope sweep).
+#
+# Calibration history:
+#   * 2026-05-17 diagnostic: showed the canonical config (budget=1000,
+#     target_util=0.8, target_margin=0.10) is physically infeasible because
+#     AdCraft's economic model has cpc(b=10) ~ 5.8 vs revenue/click ~ 0.21
+#     (ratio ~28x deficit). No constant bid produces a positive margin.
+#   * 2026-05-18 hetero-polytope sweep (calibrate.py + calibrate_hetero.py,
+#     360 + 210 cells × 10 seeds): the joint polytope (util>=0.6, margin>=0,
+#     ctr>0.001) is *empty* for any policy. Even an oracle-heterogeneous
+#     policy (top-r% kw by score, others=0) can only reach margin>0 at
+#     r=0.1 (top-1 kw), where util<=0.19. Pareto front util<->margin
+#     proven empirically; no point dominates anonymous institution targets.
+#
+# Strategy adopted (option 1, "loss-budget formulation"): keep the AdCraft
+# defaults intact; reformulate target_margin as a tolerated-loss ratio
+# rather than a profit floor. This matches the CMDP literature (e.g. RCPO
+# Tessler 2018) where the cost signal can be unbounded below. Calibrated
+# targets at budget=100 with 0/21 uniform and 2/36 hetero cells feasible:
+#
+#   - target_utilization = 0.5  (uniform b=1.0 reaches 0.71, b=0.5 only 0.37)
+#   - target_ctr         = 0.7  (uniform b=1.0 only 0.83; b>=2 only ~0.6;
+#                                forces the policy onto low-bid heterogeneity)
+#   - target_margin      = -1.7 (uniform b=1.0 sits at -1.96 just below;
+#                                hetero r=0.5 score=margin at -1.68 just above)
+#
+# Discriminating cells (sweep): hetero r=0.3 score=rev (util=0.58, ctr=1.56,
+# m=-1.40) and hetero r=0.5 score=margin (util=0.69, ctr=1.01, m=-1.68).
+# No constant per-keyword bid satisfies all three.
+#
+# TODO (follow-up): formal audit of AdCraft's structural deficit — see
+# Task "[Plus tard] Investiguer pourquoi marge max d'AdCraft = -27/click".
+#
+# Constraint vector (canonical: c_k > 0 = violation; tau_k = 0):
+#   c1 = target_utilization - cost/budget
+#   c2 = target_ctr - clicks/impressions
+#   c3 = target_margin - (revenue - cost) / revenue    (revenue_share)
+
+env:
+  num_keywords: 10
+  budget: 100.0                  # discriminating polytope at b=100, not 150
+  bid_max: 10.0
+  max_days: 60
+  target_utilization: 0.5        # uniform b=1.0 reaches 0.71; b=0.5 only 0.37
+  target_ctr: 0.7                # forces low-bid heterogeneity (uniform b>=2: ~0.6)
+  target_margin: -1.7            # uniform b=1.0 sits at -1.96 (just infeasible)
+  margin_formula: revenue_share  # (rev - cost) / rev; anonymous institution convention
+
+# Shared SAC core across all four agents.
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false  # K=3 wrapper + Rust sim is CPU-bound
+
+# Per-agent extras. Strings encode K-vectors (comma-separated).
+agents:
+  lag_multi:
+    lambda_init: 0.0
+    lambda_lr: 5.0e-3              # bumped from 1e-3 after 2026-05-18 smoke: λ_k1/k2 stuck at 0 at 3k steps; 5e-3 accelerates without risking instability vs 1e-2
+    lambda_update_frequency: 1
+    cost_baseline: 0.0
+  fixed:
+    cost_weights: "1.0,1.0,1.0"
+  tcl:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""             # no annealing in pilot (§4.3 covers schedule)
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+  hprs:
+    thresholds: "0.0,0.0,0.0"
+    base_weight: 1.0
+    weight_decay: 1.0           # no decay in pilot
+
+seeds: [1, 2, 3]
+output_dir: runs/pilot_adcraft_calibrated

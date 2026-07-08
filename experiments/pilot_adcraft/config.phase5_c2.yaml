@@ -1,0 +1,78 @@
+# Section 7.1 pilot — Phase 5 Axis C2: hierarchical betas (50, 10, 5).
+#
+# Motivation:
+#   A1 showed that with flat betas (10, 10, 10) all constraints are treated
+#   uniformly. Axis C2 tests TCL's lexicographic priority property (§4.2):
+#   with betas_init = (50, 10, 5), the gate for c0 is much steeper (β_0=50)
+#   than for c1 (β_1=10) and c2 (β_2=5).
+#
+# Theory (§4.2 Prop 3 analogue for K=3):
+#   With β_0 >> β_1 >> β_2, the shaped reward near the c0 boundary changes much
+#   faster than near c1 or c2. This creates an approximate lexicographic ordering:
+#   c0 satisfaction dominates the gradient, then c1, then c2.
+#
+# What C2 tests:
+#   - Does β_0=50 prevent the TCL failure mode (negative-reward gate inversion)?
+#     With steeper gate, the feasible / infeasible reward gap is wider → stronger
+#     gradient signal toward c0 satisfaction.
+#   - Does TCL maintain util (c0) while relaxing c2 (margin) more aggressively?
+#   - Does fixed still dominate on c0 (no priority mechanism)?
+#
+# Expected:
+#   - TCL C2 seeds: CSR_c0 ≥ 0.95 for all seeds (A1 had 1/3 failure at β=10)
+#   - TCL C2: slightly worse CSR_c2 vs A1 (less pressure on margin with β_2=5)
+#   - lag_multi: same λ≡0 pattern (β does not affect Lagrangian)
+#
+# Constraint vector (canonical: c_k > 0 = violation):
+#   c0 = target_utilization - cost/budget
+#   c1 = target_ctr - clicks/impressions
+#   c2 = target_margin - (revenue-cost)/revenue
+
+env:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80       # same as A1
+  target_ctr: 0.15
+  target_margin: -4.0
+  margin_formula: revenue_share
+  # drift_rate not specified → default 3%/day (same as A1)
+
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+agents:
+  lag_multi:
+    lambda_init: 0.0
+    lambda_lr: 5.0e-3
+    lambda_update_frequency: 1
+    cost_baseline: 0.0
+  fixed:
+    cost_weights: "1.0,1.0,1.0"
+  tcl:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "50.0,10.0,5.0"   # C2: hierarchical (util priority = 50)
+    betas_final: ""
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+  hprs:
+    thresholds: "0.0,0.0,0.0"
+    base_weight: 1.0
+    weight_decay: 1.0
+
+seeds: [1, 2, 3]
+output_dir: runs/phase5_c2

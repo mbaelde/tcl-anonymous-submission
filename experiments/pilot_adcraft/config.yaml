@@ -1,0 +1,64 @@
+# Section 7.1 pilot: four baselines on MultiConstraintAdCraft (K=3).
+#
+# Compares the proposed TCL agent against three established baselines on the
+# same K=3 constrained MDP. The pilot uses a small grid to validate that the
+# wiring is correct before scaling to the paper's full experiment.
+#
+# Constraint vector (see Decision_AdCraft_vs_proprietaire.md):
+#   c1 = budget utilization shortfall (positive iff under-spending)
+#   c2 = CTR target shortfall          (positive iff CTR < target)
+#   c3 = margin target shortfall       (positive iff margin < target)
+# All canonical: c_k > 0 means violation; default tau_k = 0.
+
+env:
+  num_keywords: 10
+  budget: 1000.0
+  bid_max: 10.0
+  max_days: 60
+  target_utilization: 0.8
+  # Legacy targets (pre-2026-05-17). Kept as the reproducible ablation for the
+  # pilot result reported in `runs/pilot_adcraft/`. New diagnostic / production
+  # runs should use config.diagnostic.yaml (target_ctr=1e-3, target_margin=0.70,
+  # margin_formula=revenue_share — matches the anonymous institution convention).
+  target_ctr: 0.05
+  target_margin: 0.1
+  margin_formula: cost_markup
+
+# Shared SAC core across all four agents.
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false  # K=3 wrapper + Rust sim is CPU-bound
+
+# Per-agent extras. Strings encode K-vectors (comma-separated).
+agents:
+  lag_multi:
+    lambda_init: 0.0
+    lambda_lr: 1.0e-3
+    lambda_update_frequency: 1
+    cost_baseline: 0.0
+  fixed:
+    cost_weights: "1.0,1.0,1.0"
+  tcl:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""             # no annealing in pilot (section 7.2 covers schedule)
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+  hprs:
+    thresholds: "0.0,0.0,0.0"
+    base_weight: 1.0
+    weight_decay: 1.0           # no decay in pilot
+
+seeds: [1, 2, 3]
+output_dir: runs/pilot_adcraft

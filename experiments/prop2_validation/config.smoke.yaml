@@ -1,0 +1,27 @@
+# Tiny smoke config: 1500 timesteps, 2 alphas x 2 omegas x 1 seed = 4 cells.
+# Used to verify the wiring and the --parallel branch.
+env:
+  horizon: 144
+  b0: 0.5
+  amplitude: 0.2
+  random_phase_at_reset: true
+
+agent:
+  total_timesteps: 1500
+  learning_starts: 300
+  buffer_size: 1500
+  batch_size: 64
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  gamma: 0.99
+  tau: 0.005
+  autotune_alpha: true
+  alpha_init: 0.2
+
+# Two corners of the (alpha, omega) plane: extremes on each axis.
+grid:
+  alphas: [1.0e-3, 1.0e-2]
+  omegas_periods_per_episode: [1.0, 4.0]
+  seeds: [42]
+
+output_dir: runs/prop2_smoke

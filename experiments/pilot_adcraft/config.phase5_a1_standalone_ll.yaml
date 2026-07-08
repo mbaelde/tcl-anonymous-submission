@@ -1,0 +1,57 @@
+# Section 5.x — Standalone (A) last_layer vs shaped (B) on the slow-drift A1 setting.
+#
+# Mirrors `config.phase5_a1_v2.yaml` exactly (env + SAC core + seeds identical).
+# Adds a single agent `tcl_standalone` with rb_mode="last_layer":
+#
+#   R = sum_k w_k R_k  +  (prod_k sigma_beta(R_k - 1/2)) * rb_weight * r_b
+#
+# The base reward r_b contributes only once all K constraints have crossed
+# half-satisfaction (cumulative-lex gating from Formulation A, Appendix B.4).
+# rb_weight=1.0 is the default calibration (lambda in [0.5, 2] from B.4).
+#
+# This is the scientifically relevant experiment: tests whether the standalone (A)
+# reward with the proper hybrid term achieves competitive constraint satisfaction
+# AND competitive return compared to the four shaped (B) baselines in phase5_a1_v2.
+#
+# Head-to-head: compare runs/phase5_a1_standalone_ll/tcl_standalone/*
+#               against runs/phase5_a1_v2/{tcl,fixed,lag_multi,hprs}/*
+# (same env_kind=laplacian, same SAC hyperparameters, same seeds [1,2,3])
+
+env:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80
+  target_ctr: 0.15
+  target_margin: -4.0
+  margin_formula: revenue_share
+
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+agents:
+  tcl_standalone:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+    rb_mode: "last_layer"
+    rb_weight: 1.0
+
+seeds: [1, 2, 3]
+output_dir: runs/phase5_a1_standalone_ll

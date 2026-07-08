@@ -1,0 +1,60 @@
+# Proposition 4 validation: beta*-scan on AdCraft A1 (loss-budget regime).
+#
+# Proposition 4 states that in the loss-budget regime (r_b uniformly negative),
+# the shaped TCL reward inverts above a critical gain beta* := ln(2M/m)/(G*-tau).
+# The inversion causes TCL to prefer infeasible actions (where r_TCL -> 0^-)
+# over feasible ones (where r_TCL = r_b * gate < 0), eliminating the constraint
+# satisfaction incentive.
+#
+# This experiment sweeps beta in {1, 2, 5, 7, 10, 15, 20} on the A1 environment
+# (target_util=0.80, drift=0.03) where the failure mode is known to appear at
+# beta=10 (from phase5_a1 and beta_schedule experiments: CSR_c0=0.372 at beta=10).
+# Expected outcome: CSR_c0 transitions from ~1.0 (beta < beta*) to ~0 (beta > beta*),
+# with beta* empirically estimated at ~2-5 from the reward distribution of this env.
+#
+# No reward shift (C=0): reveals raw failure mode.
+# For comparison of the fix, see experiments/pilot_adcraft/config.phase5_reward_shift.yaml.
+#
+# Environment: A1 (target_utilization=0.80, drift_rate=0.03, loss-budget).
+# Agent: TCL shaped (Formulation B), rb_mode=shaped (default sac_tcl).
+
+env:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80
+  target_ctr: 0.15
+  target_margin: -4.0
+  margin_formula: revenue_share
+  drift_rate: 0.03
+
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+# TCL agent defaults (no annealing, no kappas, no reward shift).
+tcl_base:
+  thresholds: "0.0,0.0,0.0"
+  betas_final: ""
+  beta_schedule: "linear"
+  beta_anneal_steps: 0
+  reward_shift: 0.0
+
+# Beta values to sweep. For each value, betas_init is set to "{b},{b},{b}".
+beta_sweep: [1, 2, 5, 7, 10, 15, 20]
+
+seeds: [1, 2, 3]
+output_dir: runs/beta_star_scan

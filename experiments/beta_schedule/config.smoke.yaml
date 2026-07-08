@@ -1,0 +1,51 @@
+# Smoke config: 2000 timesteps, 1 seed, all three schedules. Wiring check only.
+# Uses AdCraftLaplacian with reduced keyword count for speed.
+env:
+  env_kind: laplacian
+  num_keywords: 10
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 24
+  target_utilization: 0.80
+  target_ctr: 0.15
+  target_margin: -4.0
+  margin_formula: revenue_share
+  drift_rate: 0.03
+
+sac:
+  total_timesteps: 2000
+  learning_starts: 400
+  buffer_size: 2000
+  batch_size: 64
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+tcl_base:
+  thresholds: "0.0,0.0,0.0"
+
+schedules:
+  increasing:
+    betas_init: "2.0,2.0,2.0"
+    betas_final: "10.0,10.0,10.0"
+    beta_schedule: "linear"
+    beta_anneal_steps: 1333
+  decreasing:
+    betas_init: "10.0,10.0,10.0"
+    betas_final: "2.0,2.0,2.0"
+    beta_schedule: "linear"
+    beta_anneal_steps: 1333
+  fixed:
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+
+seeds: [42]
+output_dir: runs/beta_schedule_smoke

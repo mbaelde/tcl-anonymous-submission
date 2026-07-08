@@ -1,0 +1,50 @@
+# Constrained Pendulum benchmark: TCL-SAC(A) vs TCL-SAC(B) vs PID-Lag vs Lag-SAC on a non-AdCraft env.
+#
+# ConstrainedPendulum is a loss-budget CMDP (r_b <= 0 everywhere): TCL (B) fails here
+# because its multiplicative gate creates an inverted incentive (reward=0 outside constraint
+# > reward=r_b<0 inside). TCL (A) standalone avoids this by not multiplying by r_b.
+# Env: ConstrainedPendulum (Pendulum-v1 + angle constraint |theta| <= theta_max).
+# Constraint: g_1 = |theta| - theta_max; threshold tau_1 = 0.0.
+# Agents: TCL-SAC(A) standalone, TCL-SAC(B), PID-Lagrangian (Stooke 2020), standard Lagrangian.
+# Metrics: CSR_c0 (constraint satisfaction rate), episode return (steady-state last 20%).
+
+env:
+  theta_max: 0.5   # ~28 degrees — moderately tight constraint
+
+sac:
+  total_timesteps: 100000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+tcl_cfg:
+  thresholds: "0.0"
+  betas_init: "10"
+  betas_final: ""
+  beta_schedule: "linear"
+  beta_anneal_steps: 0
+  reward_shift: 0.0
+
+pid_cfg:
+  lambda_init: 0.0
+  pid_kp: 1.0e-3
+  pid_ki: 1.0e-4
+  pid_kd: 0.0
+
+lag_cfg:
+  lambda_init: 0.0
+  lambda_lr: 1.0e-3
+
+agents: ["tcl_standalone", "tcl", "pid_lagrangian", "lagrangian"]
+
+seeds: [1, 2, 3]
+output_dir: runs/constrained_pendulum_bench

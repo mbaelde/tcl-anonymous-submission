@@ -1,0 +1,37 @@
+# Proposition 2 validation: dual-oscillation amplitude vs (alpha, omega).
+#
+# Each (alpha, omega, seed) cell trains a Lag-SAC agent on the
+# SinusoidalCMDP and dumps the per-step lambda(t) trajectory. The
+# analyzer measures the steady-state peak-to-peak amplitude of lambda(t)
+# and compares to the theoretical prediction
+#
+#     A_lambda(alpha, omega) = 2 * alpha * A / sqrt(alpha^2 + omega^2)
+#
+# which is O(alpha / omega) for omega >> alpha and saturates at 2A
+# for omega << alpha.
+
+env:
+  horizon: 144
+  b0: 0.5
+  amplitude: 0.2
+  random_phase_at_reset: true
+
+agent:
+  total_timesteps: 60000
+  learning_starts: 1000
+  batch_size: 256
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  gamma: 0.99
+  tau: 0.005
+  autotune_alpha: true
+  alpha_init: 0.2
+
+# Sweep grid. omega is given in units of (2*pi / horizon) periods/episode;
+# the runner converts to rad/step. alphas are the dual learning rates.
+grid:
+  alphas: [1.0e-3, 3.0e-3, 1.0e-2, 3.0e-2]
+  omegas_periods_per_episode: [0.5, 1.0, 2.0, 4.0, 8.0]
+  seeds: [1, 2, 3]
+
+output_dir: runs/prop2

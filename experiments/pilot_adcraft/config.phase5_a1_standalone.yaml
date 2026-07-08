@@ -1,0 +1,52 @@
+# Section 5.x — Standalone (A) vs shaped (B) on the slow-drift A1 setting.
+#
+# Mirrors `config.phase5_a1_v2.yaml` (env + SAC core + seeds identical) so that
+# results land in a separate output_dir but remain directly comparable to the
+# existing phase5_a1_v2 cells for lag_multi / fixed / tcl / hprs.
+#
+# Adds a single agent `tcl_standalone` consuming R_TCL^(A) = sum_k w_k R_k
+# (cf. tcl.rewards.standalone). rb_mode="ignore" -> pure (A), reward in [0, K]:
+# tests whether the cumulative-lex weighting alone (no multiplicative gating on
+# r_b) is sufficient to maintain constraint satisfaction on slow-drift AdCraft.
+#
+# To compare against tcl (shaped B), re-use the existing phase5_a1_v2/tcl/*
+# cells (same env_kind, same SAC hyperparameters, same seeds).
+
+env:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80
+  target_ctr: 0.15
+  target_margin: -4.0
+  margin_formula: revenue_share
+
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+agents:
+  tcl_standalone:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+    rb_mode: "ignore"
+    rb_weight: 1.0
+
+seeds: [1, 2, 3]
+output_dir: runs/phase5_a1_standalone

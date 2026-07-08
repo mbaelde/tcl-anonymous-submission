@@ -1,0 +1,46 @@
+# Tiny smoke config: 1500 timesteps, 1 seed. Used to verify wiring.
+env:
+  num_keywords: 5
+  budget: 200.0
+  bid_max: 10.0
+  max_days: 24
+  target_utilization: 0.8
+  target_ctr: 0.05
+  target_margin: 0.1
+
+sac:
+  total_timesteps: 1500
+  learning_starts: 300
+  buffer_size: 1500
+  batch_size: 64
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+agents:
+  lag_multi:
+    lambda_init: 0.0
+    lambda_lr: 1.0e-3
+    lambda_update_frequency: 1
+    cost_baseline: 0.0
+  fixed:
+    cost_weights: "1.0,1.0,1.0"
+  tcl:
+    thresholds: "0.0,0.0,0.0"
+    betas_init: "10.0,10.0,10.0"
+    betas_final: ""
+    beta_schedule: "linear"
+    beta_anneal_steps: 0
+  hprs:
+    thresholds: "0.0,0.0,0.0"
+    base_weight: 1.0
+    weight_decay: 1.0
+
+seeds: [42]
+output_dir: runs/pilot_adcraft_smoke

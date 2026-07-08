@@ -1,0 +1,75 @@
+# Diagnostic mini-grid for pilot_adcraft.
+#
+# The 12-cell pilot (config.yaml) produced CSR_k0 ≈ 0 across all agents.
+# Two issues identified:
+#   1. target_ctr=0.05 is too aggressive (anonymous institution production targets ~0.001).
+#   2. target_margin=0.10 used the cost-markup formula (rev-cost)/cost; the
+#      anonymous institution convention is revenue-share (rev-cost)/rev with target ~0.70.
+#   3. total_timesteps=60000 may be too short for SAC on AdCraft (~10× under
+#      typical AdCraft RL baselines).
+#
+# This 4-cell diagnostic isolates the three hypotheses before relaunching the
+# full grid. lag_multi is the most informative agent (dual variables expose
+# which constraints are saturating), so all SAC cells use it.
+
+env:
+  num_keywords: 10
+  budget: 1000.0
+  bid_max: 10.0
+  max_days: 60
+  target_utilization: 0.8         # pacing: strong constraint, unchanged
+  target_ctr: 0.001               # anonymous institution convention
+  target_margin: 0.70             # anonymous institution convention (revenue_share)
+  margin_formula: revenue_share
+
+# SAC core: shared across the three SAC diagnostic cells, but
+# `total_timesteps` is overridden per cell below.
+sac:
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+# lag_multi extras (matches pilot_adcraft/config.yaml).
+lag_multi:
+  lambda_init: 0.0
+  lambda_lr: 1.0e-3
+  lambda_update_frequency: 1
+  cost_baseline: 0.0
+
+# Diagnostic cells. Each entry produces one trajectory; seed sweep applied
+# below to all SAC cells.
+cells:
+  A_canonical_short:
+    kind: sac
+    total_timesteps: 60000
+    env_overrides: {}
+    note: "New targets, short horizon. Tests H2 (target spec alone)."
+  B_canonical_long:
+    kind: sac
+    total_timesteps: 250000
+    env_overrides: {}
+    note: "New targets, long horizon. Tests H1+H2 jointly."
+  C_pacing_only_long:
+    kind: sac
+    total_timesteps: 250000
+    env_overrides:
+      target_ctr: 1.0e-6          # effectively off
+      target_margin: -1.0e6       # effectively off
+    note: "Pacing only, long horizon. Tests whether SAC can satisfy util alone."
+  D_constant_bid_sweep:
+    kind: constant_bid
+    bids: [0.5, 1.0, 2.0, 3.0, 5.0, 7.0, 10.0]
+    episodes_per_bid: 3
+    note: "Sanity check on env physics. What util/ctr/margin is reachable?"
+
+seeds: [1, 2, 3]
+output_dir: runs/pilot_adcraft_diagnostic

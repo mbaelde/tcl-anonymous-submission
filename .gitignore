@@ -1,0 +1,58 @@
+runs_vm/*
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.installed.cfg
+*.egg
+
+# venv / uv
+.venv/
+venv/
+env/
+.uv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Experiment outputs
+runs/
+wandb/
+checkpoints/
+logs/
+*.log
+*.pth
+*.pt
+*.ckpt
+
+# Figures (regenerated from data)
+figures/**/*.png
+figures/**/*.pdf
+figures/**/*.svg
+!figures/.gitkeep
+
+# Data
+data/
+*.csv
+*.parquet
+*.npz
+
+# Notebooks
+.ipynb_checkpoints/

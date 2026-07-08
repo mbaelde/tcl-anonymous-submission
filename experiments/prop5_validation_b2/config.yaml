@@ -1,0 +1,60 @@
+# Prop. 5 validation -- B2 variant: r_b + C > 0 on F_cap (reward_shift=150).
+#
+# B1 (prop5_validation/config.yaml) has r_b < 0 uniformly (day_profit ≈ -78/step),
+# which violates Proposition 5(ii)'s hypothesis (r_b > 0 on F_cap). The mild CSR
+# degradation observed at beta >= 100 in B1 (CSR_c0 = 0.990) is a footprint of
+# this violation: at large beta the gate-suppressed infeasible region becomes
+# preferable when r_b < 0.
+#
+# B2 is identical to B1 except reward_shift=150 for the shaped-(B) agent, making
+# r_b + C > 0 uniformly (C=150 > max|day_profit|/step ≈ 78). The standalone-(A)
+# agent ignores r_b and is unaffected.
+#
+# Expected signature under Prop. 5(ii): CSR_c0=1.000 for shaped-(B) at ALL beta,
+# including beta in {100, 300}. Any gap J_base(B) - J_base(A) >= 0 is attributed
+# to (B)'s active selection within Pi_det (Prop. 5(i)).
+#
+# Environment: identical to B1 (drift_rate=0.01, easily feasible).
+# Agents: sac_tcl (B, shaped, reward_shift=150) and sac_tcl_standalone (A).
+# Beta sweep: [10, 30, 100, 300].
+# Seeds: 10 (1..10).
+
+env:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80
+  target_ctr: 0.15
+  target_margin: -4.0
+  margin_formula: revenue_share
+  drift_rate: 0.01  # B2: identical to B1 (easily feasible)
+
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+tcl_base:
+  thresholds: "0.0,0.0,0.0"
+  betas_final: ""
+  beta_schedule: "linear"
+  beta_anneal_steps: 0
+  reward_shift: 150.0  # C=150 > max|day_profit/step| ≈ 78: ensures r_b+C > 0 on F_cap
+                       # Same constant as Prop. 4 loss-budget fix (Section 4.3).
+                       # Note: sac_tcl_standalone ignores r_b entirely; only shaped-(B) is affected.
+
+beta_sweep: [10, 30, 100, 300]
+seeds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+output_dir: runs/prop5_validation_b2

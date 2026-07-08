@@ -1,0 +1,50 @@
+# Prop. 5 validation: asymptotic bridge TCL-SAC(A) vs TCL-SAC(B) as beta -> inf.
+#
+# Proposition 5 states that the optimal policies under formulations (A) and (B)
+# coincide on Pi_det as beta -> inf. Empirical signature: as beta grows, the
+# episode return and CSR of (A) and (B) agents converge.
+#
+# Environment: B1 (drift_rate=0.01) — easily feasible, both agents reach CSR=1.
+# If they also converge in return as beta increases, Prop. 5 is supported.
+#
+# Agents: sac_tcl (B, shaped) and sac_tcl_standalone (A, ignore rb).
+# Beta sweep: [10, 30, 100, 300] — chosen to span the asymptotic regime.
+# Seeds: [1, 2, 3].
+
+env:
+  env_kind: laplacian
+  num_keywords: 100
+  budget: 100.0
+  bid_max: 3.0
+  max_days: 60
+  target_utilization: 0.80
+  target_ctr: 0.15
+  target_margin: -4.0
+  margin_formula: revenue_share
+  drift_rate: 0.01  # B1: easily feasible
+
+sac:
+  total_timesteps: 60000
+  learning_starts: 1000
+  buffer_size: 200000
+  batch_size: 256
+  gamma: 0.99
+  tau: 0.005
+  policy_lr: 3.0e-4
+  q_lr: 3.0e-4
+  policy_frequency: 2
+  target_network_frequency: 1
+  autotune_alpha: true
+  alpha_init: 0.2
+  cuda: false
+
+tcl_base:
+  thresholds: "0.0,0.0,0.0"
+  betas_final: ""
+  beta_schedule: "linear"
+  beta_anneal_steps: 0
+  reward_shift: 0.0  # no shift: raw Prop. 5 comparison
+
+beta_sweep: [10, 30, 100, 300]
+seeds: [1, 2, 3]
+output_dir: runs/prop5_validation
